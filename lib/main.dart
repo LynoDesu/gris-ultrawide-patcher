@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:gris_ultrawide_patcher/file_patcher.dart';
+
+import 'file_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,17 +13,19 @@ Future<void> main() async {
     color: Colors.black.withOpacity(0.3),
   );
 
-  runApp(const MyApp());
+  runApp(MyApp(fileManager: FileManagerImpl()));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final FileManager fileManager;
+
+  const MyApp({Key? key, required this.fileManager}) : super(key: key);
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Gris Ultrawide Patcher',
       theme: ThemeData(
         brightness: Brightness.dark,
         useMaterial3: true,
@@ -39,19 +40,24 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.green,
       ),
-      home: const MyHomePage(),
+      home: MyHomePage(fileManager: fileManager),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+  final FileManager fileManager;
+
+  const MyHomePage({Key? key, required this.fileManager}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState(fileManager);
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final FileManager fileManager;
+
+  _MyHomePageState(this.fileManager);
   File? _file;
   DllStatus _dllStatus = DllStatus.notLoaded;
 
@@ -87,14 +93,10 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _pickGrisDll() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      dialogTitle: "Choose UnityPlayer.dll",
-      type: FileType.custom,
-      allowedExtensions: ["dll"],
-    );
+    File? file = await fileManager.pickGrisDll();
 
-    if (result != null) {
-      _file = File(result.files.single.path!);
+    if (file != null) {
+      _file = file;
 
       _dllStatus = await FilePatcher.getFileStatus(_file);
 
@@ -185,10 +187,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> patchDll(DllStatus statusToPatchTo) async {
-    _dllStatus = await FilePatcher.patchGrisDll(_file!, statusToPatchTo);
+    if (_file != null) {
+      _dllStatus = await fileManager.patchDll(_file!, statusToPatchTo);
 
-    setState(() {
-      _dllStatus;
-    });
+      setState(() {
+        _dllStatus;
+      });
+    }
   }
 }
