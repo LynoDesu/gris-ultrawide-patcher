@@ -52,7 +52,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late File _file;
+  File? _file;
   DllStatus _dllStatus = DllStatus.notLoaded;
 
   @override
@@ -61,24 +61,29 @@ class _MyHomePageState extends State<MyHomePage> {
       backgroundColor: Colors.transparent,
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
-            const Text("Select UnityPlayer.dll:"),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                //TextField(),
-                TextButton(
-                  onPressed: () => _pickGrisDll(),
-                  child: const Text("Browse..."),
-                ),
-              ],
+            buildSelectText(),
+            TextButton(
+              onPressed: () => _pickGrisDll(),
+              child: const Text("Browse..."),
             ),
             buildStatus(),
+            buildOptions(),
           ],
         ),
       ),
     );
+  }
+
+  Text buildSelectText() {
+    String selectText = "Select UnityPlayer.dll:";
+
+    if (_file != null && _file!.existsSync()) {
+      selectText = "${_file!.path} selected.";
+    }
+
+    return Text(selectText);
   }
 
   Future<void> _pickGrisDll() async {
@@ -97,7 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _dllStatus;
       });
     } else {
-      // User canceled the picker
+      // User cancelled the picker
     }
   }
 
@@ -112,12 +117,10 @@ class _MyHomePageState extends State<MyHomePage> {
         statusText = "UnityPlayer.dll is ready for ultra-wide patching!";
         break;
       case DllStatus.patched1080:
-        statusText =
-            "UnityPlayer.dll appears to be patched with 2560x1080 resolution";
+        statusText = "UnityPlayer.dll is patched with 2560x1080 resolution";
         break;
       case DllStatus.patched1440:
-        statusText =
-            "UnityPlayer.dll appears to be patched with 3440x1440 resolution";
+        statusText = "UnityPlayer.dll is patched with 3440x1440 resolution";
         break;
       default:
         statusText =
@@ -125,9 +128,67 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
     }
 
+    List<Widget> widgets = [
+      Flexible(child: Wrap(children: [Text(statusText)]))
+    ];
+
+    if ([DllStatus.unpatched, DllStatus.patched1080, DllStatus.patched1440]
+        .contains(_dllStatus)) {
+      widgets.add(
+        const Icon(
+          Icons.done_rounded,
+          color: Colors.green,
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Text(statusText),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: widgets,
+      ),
     );
+  }
+
+  Widget buildOptions() {
+    Widget options = const Spacer();
+
+    if ([DllStatus.patched1080, DllStatus.patched1440, DllStatus.unpatched]
+        .contains(_dllStatus)) {
+      options = Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          TextButton(
+            onPressed: _dllStatus == DllStatus.unpatched
+                ? null
+                : () async => patchDll(DllStatus.unpatched),
+            child: const Text("Revert to widescreen"),
+          ),
+          TextButton(
+            onPressed: _dllStatus == DllStatus.patched1080
+                ? null
+                : () async => patchDll(DllStatus.patched1080),
+            child: const Text("Enable 2560x1080"),
+          ),
+          TextButton(
+            onPressed: _dllStatus == DllStatus.patched1440
+                ? null
+                : () async => patchDll(DllStatus.patched1440),
+            child: const Text("Enable 3440x1440"),
+          ),
+        ],
+      );
+    }
+
+    return options;
+  }
+
+  Future<void> patchDll(DllStatus statusToPatchTo) async {
+    _dllStatus = await FilePatcher.patchGrisDll(_file!, statusToPatchTo);
+
+    setState(() {
+      _dllStatus;
+    });
   }
 }

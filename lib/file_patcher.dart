@@ -6,13 +6,19 @@ class FilePatcher {
   static final List<int> x1080Values = [0x26, 0xB4, 0x17, 0x40];
   static final List<int> x1440Values = [0x8E, 0xE3, 0x18, 0x40];
 
-  static Future<void> patchDll(String filePath, List<int> targetValues,
-      List<int> reaplcementValues) async {
+  static final Map patchValues = {
+    DllStatus.unpatched: originalValues,
+    DllStatus.patched1080: x1080Values,
+    DllStatus.patched1440: x1440Values,
+  };
+
+  static Future<void> patchDll(String filePath, List<int> valuesToReplace,
+      List<int> replacementValues) async {
     // The target hex string (byte sequence) to search for
-    Uint8List targetBytes = Uint8List.fromList(targetValues);
+    Uint8List targetBytes = Uint8List.fromList(valuesToReplace);
 
     // The replacement hex string (byte sequence)
-    Uint8List replacementBytes = Uint8List.fromList(reaplcementValues);
+    Uint8List replacementBytes = Uint8List.fromList(replacementValues);
 
     // Read the file into a Uint8List
     Uint8List fileBytes = await File(filePath).readAsBytes();
@@ -77,22 +83,54 @@ class FilePatcher {
     return true;
   }
 
-  static Future<DllStatus> getFileStatus(File file) async {
-    Uint8List fileBytes = await file.readAsBytes();
-    DllStatus dllStatus = DllStatus.unknown;
+  static Future<DllStatus> getFileStatus(File? file) async {
+    DllStatus dllStatus = DllStatus.notLoaded;
 
-    if (FilePatcher.containsTargetBytes(
-        fileBytes, Uint8List.fromList(FilePatcher.originalValues))) {
-      dllStatus = DllStatus.unpatched;
-    } else if (FilePatcher.containsTargetBytes(
-        fileBytes, Uint8List.fromList(FilePatcher.x1080Values))) {
-      dllStatus = DllStatus.patched1080;
-    } else if (FilePatcher.containsTargetBytes(
-        fileBytes, Uint8List.fromList(FilePatcher.x1440Values))) {
-      dllStatus = DllStatus.patched1440;
+    if (file != null) {
+      Uint8List fileBytes = await file.readAsBytes();
+      dllStatus = DllStatus.unknown;
+
+      if (FilePatcher.containsTargetBytes(
+          fileBytes, Uint8List.fromList(FilePatcher.originalValues))) {
+        dllStatus = DllStatus.unpatched;
+      } else if (FilePatcher.containsTargetBytes(
+          fileBytes, Uint8List.fromList(FilePatcher.x1080Values))) {
+        dllStatus = DllStatus.patched1080;
+      } else if (FilePatcher.containsTargetBytes(
+          fileBytes, Uint8List.fromList(FilePatcher.x1440Values))) {
+        dllStatus = DllStatus.patched1440;
+      }
     }
 
     return dllStatus;
+  }
+
+  static Future<DllStatus> patchGrisDll(
+      File file, DllStatus statusToPatchTo) async {
+    DllStatus currentStatus = await getFileStatus(file);
+
+    if (currentStatus == statusToPatchTo) {
+      // Already in the status we want to patch to!
+      return currentStatus;
+    }
+
+    var patchFromValues = patchValues[currentStatus];
+    var patchToValues = patchValues[statusToPatchTo];
+
+    if (currentStatus == DllStatus.unpatched &&
+        !await File("${file.path}.bak").exists()) {
+      print("Creating backup file: ${file.path}.bak");
+
+      try {
+        await file.copy("${file.path}.bak");
+      } on Exception catch (e) {
+        print("Error creating backup: \n $e");
+      }
+    }
+
+    await patchDll(file.path, patchFromValues, patchToValues);
+
+    return await getFileStatus(file);
   }
 }
 
