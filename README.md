@@ -1,16 +1,14 @@
-# gris_ultrawide_patcher
+# Gris ultra-wide patcher
 
-A new Flutter project.
+This is a simple patcher for Gris to enable ultra-wide resolutions.
+
+This is achieved by patching UnityPlayer.dll and currently supports the following fuctionality:
+- Enabling 2560x1080 resolution
+- Enabling 3440x1440 resolution
+- Reverting back to unpatch/widescreen state
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+The patcher is written in Flutter & Dart and targets Windows, macOS and Linux. 
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+I will be soon posting release files once I have time to build and sign them, but for now you can build them from source.
